@@ -1,0 +1,85 @@
+#!/bin/bash
+# CS 265 Assignment 1
+# Man Yi (Ariel) Yeung
+# 5/2/2020
+
+filename=".KS_Dir"						#default filename and directory
+directory="."
+if [[ $# == 0 || $# -gt 4 ]]; then				# error message for wrong number of inputs
+	echo -e "Error: wrong number of inputs provided.\n"
+	exit 1
+fi
+
+while getopts "f:" opt; do							# getting the input from option -f and error message for invalid option
+   case ${opt} in
+      f) 
+			filename="$OPTARG"
+			;;
+		\? )
+			echo -e  "Invaid Option: -$OPTARG"
+			;;
+   esac
+done
+shift "$(($OPTIND -1))"								#shifting to remove the processed arguments from the index
+
+if [[ $# == 1 ]]; then								#when only 1 other argument provided
+	measurement=$1
+fi		
+
+if [[ $# == 2 ]]; then								#when 2 other arguments provided
+	directory=$1
+	measurement=$2
+fi
+
+if [[ ! -d "$directory" || ! -x "$directory" ]]; then					#when input directory does not exist or not accesible
+	echo -e "Directory does not exist or is not accessible\n"
+	exit 1
+fi
+
+
+#check if measurement given is one of the 5 allowed
+case "$measurement" in
+	bear|dromedary|aardvark|genet|lemur)
+		;;
+	*)
+		echo -e "Invalid measurements given\n"
+		exit 1
+		;;
+esac
+#finished verifying all arguments, below starts processing
+
+#Function to get sum of selected measurement in individual files
+getSum (){
+	sum=$(awk -v meas="$1" 'BEGIN {sum=0} $1==meas {sum+=$2} END {print sum}' "$2")
+	echo $sum
+}
+
+#Function to do resursive calls to traverse all subdirecetories and get the target file
+recur_dir () {
+	if [[ -e "$1"/"$filename" ]] ; then
+		echo "$1"/"$filename"
+	fi
+	for item in ls "$1"/* ; do
+		if [[ -d "$item" ]] ; then
+			recur_dir "${item}"
+		fi
+		
+	done
+}
+
+
+files=$(recur_dir $directory)							#list of target files
+if [ -z "$files" ] ; then									#if no target files exist anywhere return measurement and 0
+	echo "$measurement" 0
+	exit 0
+fi
+
+#getting a list of counts of measurements in individual files
+count=$(echo -e "$files" | while read file ; do
+	echo -e "$(getSum "$measurement" "$file")"
+done)
+
+count=$(echo $count | awk '{sum=0; for(i=1;i<=NF;++i) sum+=$i; print sum}')    #summing list of counts
+
+echo $measurement $count
+exit 0
